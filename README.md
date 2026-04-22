@@ -1,6 +1,6 @@
-# Email Spam Detection MLOps Pipeline
+# Email Spam Detection MLOps Pipeline with DVC
 
-A complete machine learning pipeline for email spam detection with modular architecture and MLOps best practices.
+A complete machine learning pipeline for email spam detection with DVC for data versioning and pipeline orchestration.
 
 ## Project Structure
 
@@ -10,20 +10,30 @@ DVC-MLops-S3/
 │   ├── data_ingestion.py      # Data loading and ingestion
 │   ├── data_preprocessing.py  # Text cleaning and preprocessing
 │   ├── feature_engineering.py # Feature extraction and engineering
-│   ├── model_building.py      # Model training and comparison
+│   ├── model_building.py      # Model training
 │   └── model_evaluation.py    # Model evaluation and testing
-├── main.py                    # Main pipeline script
-├── requirements.txt           # Python dependencies
-└── README.md                  # This file
+├── data/                      # Data directories (generated)
+│   ├── raw/                   # Raw data
+│   ├── interim/              # Intermediate processed data
+│   └── processed/            # Final processed data
+├── models/                    # Trained models
+├── reports/                  # Evaluation metrics
+├── logs/                     # Log files
+├── param.yaml                # Pipeline parameters
+├── dvc.yaml                  # DVC pipeline definition
+├── requirements.txt          # Python dependencies
+└── README.md                 # This file
 ```
 
 ## Features
 
+- **DVC Pipeline**: Version-controlled ML pipeline with dependency tracking
 - **Modular Design**: Each ML pipeline stage is in a separate module
-- **Multiple Models**: Compares Logistic Regression, Random Forest, Naive Bayes, and SVM
-- **Feature Engineering**: TF-IDF vectorization + custom text features
-- **Comprehensive Evaluation**: Accuracy, Precision, Recall, F1-Score, ROC-AUC
-- **Model Persistence**: Saves best model and preprocessing objects
+- **Random Forest Model**: Trains Random Forest classifier for spam detection
+- **Feature Engineering**: TF-IDF vectorization
+- **Comprehensive Evaluation**: Accuracy, Precision, Recall, ROC-AUC
+- **DVC Live Integration**: Experiment tracking with dvclive
+- **Parameter Management**: YAML-based parameter configuration
 
 ## Installation
 
@@ -32,87 +42,122 @@ DVC-MLops-S3/
 pip install -r requirements.txt
 ```
 
-## Usage
-
-Run the complete pipeline:
+2. Install DVC (if not already installed):
 ```bash
-python main.py
+pip install dvc
 ```
 
-This will:
-1. Load/create sample spam detection dataset
-2. Preprocess and clean text data
-3. Engineer features (TF-IDF + custom features)
-4. Train and compare multiple models
-5. Evaluate model performance
-6. Test on new email samples
+## Usage
 
-## Pipeline Stages
+### Run Complete Pipeline with DVC:
+```bash
+dvc repro
+```
 
-### 1. Data Ingestion (`data_ingestion.py`)
-- Creates sample email dataset with spam/ham labels
-- Handles data loading and basic statistics
+This will execute the complete pipeline:
+1. **Data Ingestion**: Load spam.csv from GitHub, split into train/test
+2. **Data Preprocessing**: Text cleaning, stopword removal, stemming
+3. **Feature Engineering**: TF-IDF vectorization
+4. **Model Building**: Train Random Forest classifier
+5. **Model Evaluation**: Evaluate model and save metrics
 
-### 2. Data Preprocessing (`data_preprocessing.py`)
-- Text cleaning (lowercase, remove punctuation, numbers)
-- Stop word removal
-- Train/test split
+### Run Individual Stages:
+```bash
+python src/data_ingestion.py
+python src/data_preprocessing.py
+python src/feature_engineering.py
+python src/model_building.py
+python src/model_evaluation.py
+```
 
-### 3. Feature Engineering (`feature_engineering.py`)
-- TF-IDF vectorization
-- Custom text features (length, special characters, spam keywords)
-- Feature scaling
+## Pipeline Configuration
 
-### 4. Model Building (`model_building.py`)
-- Trains multiple classifiers
-- Compares model performance
-- Saves best performing model
+### Parameters (`param.yaml`)
+```yaml
+data_ingestion:
+  test_size: 0.21
 
-### 5. Model Evaluation (`model_evaluation.py`)
-- Comprehensive metrics calculation
-- Performance visualization
-- Testing on new samples
+feature_engineering:
+  max_features: 40
+
+model_building:
+  n_estimators: 21
+  random_state: 2
+```
+
+### DVC Pipeline (`dvc.yaml`)
+Defines the 5-stage pipeline with dependencies:
+- `data_ingestion` → `data_preprocessing` → `feature_engineering` → `model_building` → `model_evaluation`
+
+## Data Flow
+
+1. **Input**: Spam dataset from GitHub (`https://raw.githubusercontent.com/vikashishere/Datasets/main/spam.csv`)
+2. **Raw Data**: `data/raw/train.csv`, `data/raw/test.csv`
+3. **Processed Data**: `data/interim/train_processed.csv`, `data/interim/test_processed.csv`
+4. **Features**: `data/processed/train_tfidf.csv`, `data/processed/test_tfidf.csv`
+5. **Model**: `models/model.pkl`
+6. **Metrics**: `reports/metrics.json`
 
 ## Model Performance
 
-The pipeline trains and compares:
-- **Logistic Regression**: Linear classifier with regularization
-- **Random Forest**: Ensemble of decision trees
-- **Naive Bayes**: Probabilistic classifier (good for text)
-- **SVM**: Support Vector Machine with RBF kernel
+The pipeline trains a **Random Forest Classifier** with:
+- TF-IDF features for text representation
+- Configurable number of estimators and random state
+- Comprehensive evaluation metrics
 
 ## Output Files
 
-- `models/best_spam_detector_model.pkl`: Best performing model
-- `models/tfidf_vectorizer.pkl`: TF-IDF vectorizer
-- `models/scaler.pkl`: Feature scaler
-- `results/evaluation_results.pkl`: Detailed evaluation results
-- `results/evaluation_summary.csv`: Performance summary
+- `models/model.pkl`: Trained Random Forest model
+- `reports/metrics.json`: Evaluation metrics (accuracy, precision, recall, AUC)
+- `dvclive/`: Experiment tracking with DVC Live
+- `logs/`: Log files for each pipeline stage
+
+## DVC Commands
+
+```bash
+# Run complete pipeline
+dvc repro
+
+# Show pipeline status
+dvc status
+
+# Show pipeline visualization
+dvc dag
+
+# Track new data
+dvc add data/raw
+
+# Push data to remote storage
+dvc push
+
+# Pull data from remote storage
+dvc pull
+```
 
 ## Example Usage
 
 ```python
-from src.model_building import ModelBuilding
-from src.feature_engineering import FeatureEngineering
+import pickle
+import pandas as pd
 
-# Load saved model
-model_builder = ModelBuilding()
-model = model_builder.load_model('best_spam_detector')
+# Load trained model
+with open('models/model.pkl', 'rb') as f:
+    model = pickle.load(f)
 
-# Load feature engineering objects
-feature_engineer = FeatureEngineering()
-feature_engineer.load_feature_engineering_objects()
+# Load test features
+test_data = pd.read_csv('data/processed/test_tfidf.csv')
+X_test = test_data.iloc[:, :-1].values
+y_test = test_data.iloc[:, -1].values
 
-# Predict on new email
-new_email = "Congratulations! You won $1000!"
-# ... (preprocessing and feature engineering steps)
-prediction = model.predict(features)
+# Make predictions
+predictions = model.predict(X_test)
 ```
 
 ## Next Steps
 
-- Integrate with DVC for data versioning
+- Add hyperparameter tuning with DVC experiments
+- Integrate with cloud storage (S3, GCS)
 - Add model monitoring and drift detection
-- Implement A/B testing framework
+- Implement CI/CD for ML pipeline
 - Deploy model as REST API
-- Add more sophisticated NLP features
+- Add more sophisticated NLP features (BERT, word embeddings)
